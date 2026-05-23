@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 1
+names: ['floor']
+
+roboflow:
+  workspace: shravans-workspace-oc09h
+  project: shravans-workspace-oc09h
+  version: dataset
+  license: Private
+  url: https://app.roboflow.com/shravans-workspace-oc09h/shravans-workspace-oc09h/dataset
