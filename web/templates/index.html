@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Floor Detection — AGV</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0a0c0f;
+      --surface:  #111318;
+      --border:   #1e2330;
+      --accent:   #00e5ff;
+      --floor:    #ff5020;
+      --safe:     #00c850;
+      --text:     #c8d0e0;
+      --muted:    #4a5270;
+      --mono:     'Share Tech Mono', monospace;
+      --sans:     'Barlow', sans-serif;
+    }
+
+    html, body {
+      height: 100%; background: var(--bg);
+      color: var(--text); font-family: var(--sans);
+      font-weight: 300; overflow: hidden;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-rows: 48px 1fr auto;
+      height: 100dvh;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* ── header ── */
+    header {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .logo {
+      font-family: var(--mono); font-size: 13px;
+      letter-spacing: 0.12em; color: var(--accent);
+    }
+    .logo span { color: var(--muted); }
+    .state-label {
+      font-family: var(--mono); font-size: 11px;
+      color: var(--muted); letter-spacing: 0.1em;
+      text-transform: uppercase;
+      transition: color 0.3s;
+    }
+    .state-label.active { color: var(--accent); }
+    .state-label.done   { color: var(--safe); }
+    .state-label.error  { color: var(--floor); }
+
+    /* ── viewport ── */
+    .viewport {
+      position: relative; overflow: hidden; background: #000;
+    }
+
+    /* corner brackets */
+    .viewport::before, .viewport::after, .corner-br, .corner-bl {
+      content: ''; position: absolute;
+      width: 22px; height: 22px;
+      border-color: var(--accent); border-style: solid;
+      opacity: 0.5; z-index: 10; pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .viewport::before { top: 10px; left: 10px;   border-width: 2px 0 0 2px; }
+    .viewport::after  { top: 10px; right: 10px;  border-width: 2px 2px 0 0; }
+    .corner-br        { bottom: 10px; right: 10px; border-width: 0 2px 2px 0; }
+    .corner-bl        { bottom: 10px; left: 10px;  border-width: 0 0 2px 2px; }
+
+    /* brighten corners when result is shown */
+    .viewport.result-shown::before,
+    .viewport.result-shown::after,
+    .viewport.result-shown .corner-br,
+    .viewport.result-shown .corner-bl {
+      border-color: var(--safe); opacity: 0.9;
+    }
+
+    video, canvas {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%; object-fit: cover;
+    }
+    canvas { z-index: 5; }
+
+    .scanlines {
+      position: absolute; inset: 0; pointer-events: none; z-index: 6;
+      background: repeating-linear-gradient(
+        to bottom, transparent 0, transparent 3px,
+        rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px
+      );
+    }
+
+    /* loading spinner shown during inference */
+    .spinner {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 14px; z-index: 12;
+      background: rgba(10,12,15,0.72);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .spinner.show { opacity: 1; pointer-events: all; }
+    .spinner-ring {
+      width: 44px; height: 44px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner p {
+      font-family: var(--mono); font-size: 11px;
+      color: var(--muted); letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    /* idle overlay */
+    .idle-msg {
+      position: absolute; inset: 0; z-index: 8;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 10px;
+      background: rgba(10,12,15,0.8);
+      transition: opacity 0.4s;
+    }
+    .idle-msg.hidden { opacity: 0; pointer-events: none; }
+    .idle-msg svg { opacity: 0.25; }
+    .idle-msg p {
+      font-family: var(--mono); font-size: 12px;
+      color: var(--muted); letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    /* inference ms badge */
+    .perf {
+      position: absolute; bottom: 12px; right: 12px; z-index: 11;
+      font-family: var(--mono); font-size: 11px; color: var(--accent);
+      background: rgba(0,0,0,0.65); padding: 3px 8px;
+      border: 1px solid var(--border);
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .perf.show { opacity: 1; }
+
+    /* ── bottom panel ── */
+    .panel {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 12px 16px; display: flex;
+      flex-direction: column; gap: 10px;
+    }
+
+    /* detection tags */
+    .det-row {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      min-height: 26px; align-items: center;
+    }
+    .det-tag {
+      font-family: var(--mono); font-size: 11px;
+      padding: 3px 10px; border-radius: 2px; border: 1px solid;
+      animation: tagIn 0.15s ease;
+    }
+    @keyframes tagIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: none; }
+    }
+    .det-tag.floor { color: var(--floor); border-color: var(--floor); background: rgba(255,80,32,0.08); }
+    .det-tag.safe  { color: var(--safe);  border-color: var(--safe);  background: rgba(0,200,80,0.08);  }
+    .no-det { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+    /* buttons */
+    .controls { display: flex; gap: 10px; }
+    button {
+      flex: 1; font-family: var(--mono); font-size: 12px;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 11px; border: 1px solid var(--border);
+      background: transparent; color: var(--text);
+      cursor: pointer; border-radius: 2px; transition: all 0.15s;
+    }
+    button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    button:active:not(:disabled) { background: rgba(0,229,255,0.06); }
+    button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    #btnCapture {
+      border-color: var(--accent); color: var(--accent); flex: 2;
+    }
+    #btnCapture:hover:not(:disabled) {
+      background: var(--accent); color: var(--bg);
+    }
+    #btnRetry { border-color: var(--muted); }
+
+    /* toast */
+    .toast {
+      position: fixed; bottom: 140px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,80,32,0.12); border: 1px solid var(--floor);
+      color: var(--floor); font-family: var(--mono); font-size: 11px;
+      padding: 8px 16px; border-radius: 2px; z-index: 99;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none;
+      max-width: 90vw; text-align: center;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <header>
+    <div class="logo">AGV <span>//</span> Floor Detect</div>
+    <div class="state-label" id="stateLabel">Ready</div>
+  </header>
+
+  <div class="viewport" id="viewport">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+    <div class="scanlines"></div>
+    <div class="corner-br"></div>
+    <div class="corner-bl"></div>
+    <div class="perf" id="perf"></div>
+
+    <div class="spinner" id="spinner">
+      <div class="spinner-ring"></div>
+      <p>Analysing…</p>
+    </div>
+
+    <div class="idle-msg" id="idle">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="1">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+      <p>Tap "Open Camera" to begin</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="det-row" id="detRow">
+      <span class="no-det" id="noDet">— point camera at a floor —</span>
+    </div>
+    <div class="controls">
+      <button id="btnOpen">Open Camera</button>
+      <button id="btnCapture" disabled>⊙ Capture</button>
+      <button id="btnRetry" disabled>↺ Retry</button>
+    </div>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+  const video     = document.getElementById('video');
+  const canvas    = document.getElementById('canvas');
+  const ctx       = canvas.getContext('2d');
+  const viewport  = document.getElementById('viewport');
+  const idle      = document.getElementById('idle');
+  const spinner   = document.getElementById('spinner');
+  const perf      = document.getElementById('perf');
+  const detRow    = document.getElementById('detRow');
+  const noDet     = document.getElementById('noDet');
+  const stateLabel= document.getElementById('stateLabel');
+  const btnOpen   = document.getElementById('btnOpen');
+  const btnCapture= document.getElementById('btnCapture');
+  const btnRetry  = document.getElementById('btnRetry');
+  const toast     = document.getElementById('toast');
+
+  let stream = null;
+
+  // ── helpers ─────────────────────────────────────────────────────────
+  function setState(s) {
+    const map = { ready:'Ready', live:'Live', analysing:'Analysing…', done:'Done', error:'Error' };
+    stateLabel.textContent  = map[s] || s;
+    stateLabel.className    = 'state-label' + (
+      s === 'live' || s === 'analysing' ? ' active' :
+      s === 'done'  ? ' done'  :
+      s === 'error' ? ' error' : ''
+    );
+  }
+
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3500);
+  }
+
+  function updateDetections(dets) {
+    detRow.querySelectorAll('.det-tag').forEach(el => el.remove());
+    if (!dets || dets.length === 0) {
+      noDet.style.display = '';
+      noDet.textContent   = '— nothing detected —';
+      return;
+    }
+    noDet.style.display = 'none';
+    const counts = {};
+    dets.forEach(d => { counts[d.cls] = (counts[d.cls] || 0) + 1; });
+    Object.entries(counts).forEach(([cls, cnt]) => {
+      const tag = document.createElement('span');
+      tag.className   = `det-tag ${cls}`;
+      tag.textContent = `${cls.toUpperCase()}  ×${cnt}`;
+      detRow.appendChild(tag);
+    });
+  }
+
+  function syncCanvas() {
+    canvas.width  = video.videoWidth  || viewport.clientWidth;
+    canvas.height = video.videoHeight || viewport.clientHeight;
+  }
+
+  // ── open camera ──────────────────────────────────────────────────────
+  btnOpen.addEventListener('click', async () => {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+    } catch {
+      showToast('Camera access denied — check browser permissions');
+      return;
+    }
+
+    video.srcObject = stream;
+    await new Promise(r => video.onloadedmetadata = r);
+    syncCanvas();
+
+    idle.classList.add('hidden');
+    btnOpen.disabled    = true;
+    btnCapture.disabled = false;
+    btnRetry.disabled   = true;
+    setState('live');
+
+    // clear any old result
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    viewport.classList.remove('result-shown');
+    perf.classList.remove('show');
+    updateDetections([]);
+    noDet.textContent = '— point camera at a floor —';
+  });
+
+  // ── capture & send ───────────────────────────────────────────────────
+  btnCapture.addEventListener('click', async () => {
+    if (!stream) return;
+
+    // 1. freeze — draw current video frame onto canvas
+    syncCanvas();
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // 2. pause live video (so user sees the frozen frame)
+    video.pause();
+    btnCapture.disabled = true;
+    btnRetry.disabled   = true;
+    spinner.classList.add('show');
+    setState('analysing');
+
+    // 3. encode canvas to JPEG
+    const dataURL = canvas.toDataURL('image/jpeg', 0.85);
+
+    // 4. send to /detect
+    try {
+      const res = await fetch('/detect', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ frame: dataURL }),
+      });
+
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      const data = await res.json();
+
+      // 5. draw annotated result over the frozen frame
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        viewport.classList.add('result-shown');
+      };
+      img.src = 'data:image/jpeg;base64,' + data.image;
+
+      updateDetections(data.detections);
+      perf.textContent = `${data.inference_ms} ms`;
+      perf.classList.add('show');
+      setState('done');
+
+    } catch (err) {
+      showToast('Server error — is the backend running?');
+      setState('error');
+      video.play();   // resume live on error
+    } finally {
+      spinner.classList.remove('show');
+      btnRetry.disabled = false;   // always allow retry
+    }
+  });
+
+  // ── retry — resume live camera ───────────────────────────────────────
+  btnRetry.addEventListener('click', () => {
+    video.play();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    viewport.classList.remove('result-shown');
+    perf.classList.remove('show');
+    updateDetections([]);
+    noDet.textContent   = '— point camera at a floor —';
+    btnCapture.disabled = false;
+    btnRetry.disabled   = true;
+    setState('live');
+  });
+
+  window.addEventListener('resize', syncCanvas);
+</script>
+</body>
+</html>
