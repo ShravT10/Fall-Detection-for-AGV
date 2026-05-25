@@ -1,13 +1,13 @@
-train: ../train/images
-val: ../valid/images
-test: ../test/images
+train: train/images
+val: valid/images
+test: test/images
 
-nc: 1
-names: ['floor']
+nc: 2
+names: ['floor', 'safe']
 
 roboflow:
   workspace: shravans-workspace-oc09h
-  project: shravans-workspace-oc09h
-  version: dataset
-  license: Private
-  url: https://app.roboflow.com/shravans-workspace-oc09h/shravans-workspace-oc09h/dataset
+  project: floor-dl6bw-h9rau
+  version: 2
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/shravans-workspace-oc09h/floor-dl6bw-h9rau/dataset/2
