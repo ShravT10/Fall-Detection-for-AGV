@@ -7,7 +7,7 @@ A computer vision project that detects **floor** and **safe zones** in images us
 ## What it does
 
 The model takes an image or camera frame and draws segmentation masks over:
-- **Floor** — walkable floor area
+- **Floor** — a area not for AGVs
 - **Safe** — designated safe zones
 
 ---
