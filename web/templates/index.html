@@ -10,16 +10,16 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:       #0a0c0f;
-      --surface:  #111318;
-      --border:   #1e2330;
-      --accent:   #00e5ff;
-      --floor:    #ff5020;
-      --safe:     #00c850;
-      --text:     #c8d0e0;
-      --muted:    #4a5270;
-      --mono:     'Share Tech Mono', monospace;
-      --sans:     'Barlow', sans-serif;
+      --bg:      #0a0c0f;
+      --surface: #111318;
+      --border:  #1e2330;
+      --accent:  #00e5ff;
+      --floor:   #ff5020;
+      --safe:    #00c850;
+      --text:    #c8d0e0;
+      --muted:   #4a5270;
+      --mono:    'Share Tech Mono', monospace;
+      --sans:    'Barlow', sans-serif;
     }
 
     html, body {
@@ -43,85 +43,72 @@
       padding: 0 16px;
       border-bottom: 1px solid var(--border);
       background: var(--surface);
+      gap: 12px;
     }
     .logo {
       font-family: var(--mono); font-size: 13px;
       letter-spacing: 0.12em; color: var(--accent);
+      white-space: nowrap;
     }
     .logo span { color: var(--muted); }
-    .state-label {
+
+    /* fps + ms meters */
+    .meters {
+      display: flex; gap: 12px; margin-left: auto;
+    }
+    .meter {
       font-family: var(--mono); font-size: 11px;
-      color: var(--muted); letter-spacing: 0.1em;
-      text-transform: uppercase;
+      color: var(--muted); letter-spacing: 0.08em;
       transition: color 0.3s;
     }
-    .state-label.active { color: var(--accent); }
-    .state-label.done   { color: var(--safe); }
-    .state-label.error  { color: var(--floor); }
+    .meter span { color: var(--accent); }
+    .meter.warn span { color: var(--floor); }
+
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--muted); flex-shrink: 0;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    .status-dot.live  { background: var(--safe); box-shadow: 0 0 8px var(--safe); }
+    .status-dot.error { background: var(--floor); }
 
     /* ── viewport ── */
     .viewport {
       position: relative; overflow: hidden; background: #000;
     }
 
-    /* corner brackets */
     .viewport::before, .viewport::after, .corner-br, .corner-bl {
       content: ''; position: absolute;
       width: 22px; height: 22px;
       border-color: var(--accent); border-style: solid;
-      opacity: 0.5; z-index: 10; pointer-events: none;
-      transition: opacity 0.3s;
+      opacity: 0.45; z-index: 10; pointer-events: none;
+      transition: opacity 0.4s, border-color 0.4s;
     }
     .viewport::before { top: 10px; left: 10px;   border-width: 2px 0 0 2px; }
     .viewport::after  { top: 10px; right: 10px;  border-width: 2px 2px 0 0; }
     .corner-br        { bottom: 10px; right: 10px; border-width: 0 2px 2px 0; }
     .corner-bl        { bottom: 10px; left: 10px;  border-width: 0 0 2px 2px; }
 
-    /* brighten corners when result is shown */
-    .viewport.result-shown::before,
-    .viewport.result-shown::after,
-    .viewport.result-shown .corner-br,
-    .viewport.result-shown .corner-bl {
-      border-color: var(--safe); opacity: 0.9;
+    .viewport.live::before, .viewport.live::after,
+    .viewport.live .corner-br, .viewport.live .corner-bl {
+      opacity: 0.85;
     }
 
     video, canvas {
       position: absolute; top: 0; left: 0;
       width: 100%; height: 100%; object-fit: cover;
     }
+    /* video sits behind canvas — canvas shows annotated frames */
+    video  { z-index: 1; }
     canvas { z-index: 5; }
 
     .scanlines {
-      position: absolute; inset: 0; pointer-events: none; z-index: 6;
+      position: absolute; inset: 0;
+      pointer-events: none; z-index: 6;
       background: repeating-linear-gradient(
         to bottom, transparent 0, transparent 3px,
         rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px
       );
-    }
-
-    /* loading spinner shown during inference */
-    .spinner {
-      position: absolute; inset: 0;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 14px; z-index: 12;
-      background: rgba(10,12,15,0.72);
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.2s;
-    }
-    .spinner.show { opacity: 1; pointer-events: all; }
-    .spinner-ring {
-      width: 44px; height: 44px;
-      border: 2px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .spinner p {
-      font-family: var(--mono); font-size: 11px;
-      color: var(--muted); letter-spacing: 0.12em;
-      text-transform: uppercase;
     }
 
     /* idle overlay */
@@ -129,7 +116,7 @@
       position: absolute; inset: 0; z-index: 8;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center; gap: 10px;
-      background: rgba(10,12,15,0.8);
+      background: rgba(10,12,15,0.85);
       transition: opacity 0.4s;
     }
     .idle-msg.hidden { opacity: 0; pointer-events: none; }
@@ -140,25 +127,26 @@
       text-transform: uppercase;
     }
 
-    /* inference ms badge */
-    .perf {
-      position: absolute; bottom: 12px; right: 12px; z-index: 11;
-      font-family: var(--mono); font-size: 11px; color: var(--accent);
-      background: rgba(0,0,0,0.65); padding: 3px 8px;
-      border: 1px solid var(--border);
-      opacity: 0; transition: opacity 0.3s;
+    /* stale frame warning — flashes if server stops responding */
+    .stale-badge {
+      position: absolute; top: 14px; left: 50%;
+      transform: translateX(-50%);
+      font-family: var(--mono); font-size: 10px;
+      color: var(--floor); background: rgba(0,0,0,0.7);
+      padding: 3px 10px; border: 1px solid var(--floor);
+      z-index: 11; opacity: 0; transition: opacity 0.3s;
+      pointer-events: none; white-space: nowrap;
     }
-    .perf.show { opacity: 1; }
+    .stale-badge.show { opacity: 1; }
 
     /* ── bottom panel ── */
     .panel {
       background: var(--surface);
       border-top: 1px solid var(--border);
-      padding: 12px 16px; display: flex;
-      flex-direction: column; gap: 10px;
+      padding: 12px 16px;
+      display: flex; flex-direction: column; gap: 10px;
     }
 
-    /* detection tags */
     .det-row {
       display: flex; gap: 8px; flex-wrap: wrap;
       min-height: 26px; align-items: center;
@@ -166,17 +154,11 @@
     .det-tag {
       font-family: var(--mono); font-size: 11px;
       padding: 3px 10px; border-radius: 2px; border: 1px solid;
-      animation: tagIn 0.15s ease;
-    }
-    @keyframes tagIn {
-      from { opacity: 0; transform: translateY(4px); }
-      to   { opacity: 1; transform: none; }
     }
     .det-tag.floor { color: var(--floor); border-color: var(--floor); background: rgba(255,80,32,0.08); }
-    .det-tag.safe  { color: var(--safe);  border-color: var(--safe);  background: rgba(0,200,80,0.08);  }
+    .det-tag.safe  { color: var(--safe);  border-color: var(--safe);  background: rgba(0,200,80,0.08); }
     .no-det { font-family: var(--mono); font-size: 11px; color: var(--muted); }
 
-    /* buttons */
     .controls { display: flex; gap: 10px; }
     button {
       flex: 1; font-family: var(--mono); font-size: 12px;
@@ -185,21 +167,38 @@
       background: transparent; color: var(--text);
       cursor: pointer; border-radius: 2px; transition: all 0.15s;
     }
-    button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    button:hover:not(:disabled)  { border-color: var(--accent); color: var(--accent); }
     button:active:not(:disabled) { background: rgba(0,229,255,0.06); }
     button:disabled { opacity: 0.3; cursor: not-allowed; }
 
-    #btnCapture {
+    #btnStart {
       border-color: var(--accent); color: var(--accent); flex: 2;
     }
-    #btnCapture:hover:not(:disabled) {
-      background: var(--accent); color: var(--bg);
+    #btnStart.running {
+      border-color: var(--floor); color: var(--floor);
     }
-    #btnRetry { border-color: var(--muted); }
+    #btnStart.running:hover:not(:disabled) {
+      background: rgba(255,80,32,0.08);
+    }
 
-    /* toast */
+    /* quality selector */
+    .quality-row {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .quality-row label {
+      font-family: var(--mono); font-size: 11px;
+      color: var(--muted); white-space: nowrap;
+    }
+    .quality-row input[type=range] {
+      flex: 1; accent-color: var(--accent);
+    }
+    .quality-val {
+      font-family: var(--mono); font-size: 11px;
+      color: var(--accent); width: 38px; text-align: right;
+    }
+
     .toast {
-      position: fixed; bottom: 140px; left: 50%;
+      position: fixed; bottom: 160px; left: 50%;
       transform: translateX(-50%);
       background: rgba(255,80,32,0.12); border: 1px solid var(--floor);
       color: var(--floor); font-family: var(--mono); font-size: 11px;
@@ -214,8 +213,12 @@
 <div class="shell">
 
   <header>
-    <div class="logo">AGV <span>//</span> Floor Detect</div>
-    <div class="state-label" id="stateLabel">Ready</div>
+    <div class="logo">AGV <span>//</span> Floor</div>
+    <div class="meters">
+      <div class="meter" id="mFps">FPS <span id="fpsVal">--</span></div>
+      <div class="meter" id="mMs">MS <span id="msVal">--</span></div>
+    </div>
+    <div class="status-dot" id="dot"></div>
   </header>
 
   <div class="viewport" id="viewport">
@@ -224,12 +227,7 @@
     <div class="scanlines"></div>
     <div class="corner-br"></div>
     <div class="corner-bl"></div>
-    <div class="perf" id="perf"></div>
-
-    <div class="spinner" id="spinner">
-      <div class="spinner-ring"></div>
-      <p>Analysing…</p>
-    </div>
+    <div class="stale-badge" id="staleBadge">⚠ server slow</div>
 
     <div class="idle-msg" id="idle">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
@@ -237,64 +235,98 @@
         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
         <circle cx="12" cy="13" r="4"/>
       </svg>
-      <p>Tap "Open Camera" to begin</p>
+      <p>Tap Start to begin</p>
     </div>
   </div>
 
   <div class="panel">
     <div class="det-row" id="detRow">
-      <span class="no-det" id="noDet">— point camera at a floor —</span>
+      <span class="no-det" id="noDet">— no detections —</span>
     </div>
+
+    <!-- interval slider -->
+    <div class="quality-row">
+      <label>INTERVAL</label>
+      <input type="range" id="slider" min="80" max="800" step="20" value="100"/>
+      <div class="quality-val"><span id="sliderVal">100</span>ms</div>
+    </div>
+
     <div class="controls">
-      <button id="btnOpen">Open Camera</button>
-      <button id="btnCapture" disabled>⊙ Capture</button>
-      <button id="btnRetry" disabled>↺ Retry</button>
+      <button id="btnStart">▶ Start</button>
+      <button id="btnSnap" disabled>⊙ Snap</button>
     </div>
   </div>
-
 </div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-  const video     = document.getElementById('video');
-  const canvas    = document.getElementById('canvas');
-  const ctx       = canvas.getContext('2d');
-  const viewport  = document.getElementById('viewport');
-  const idle      = document.getElementById('idle');
-  const spinner   = document.getElementById('spinner');
-  const perf      = document.getElementById('perf');
-  const detRow    = document.getElementById('detRow');
-  const noDet     = document.getElementById('noDet');
-  const stateLabel= document.getElementById('stateLabel');
-  const btnOpen   = document.getElementById('btnOpen');
-  const btnCapture= document.getElementById('btnCapture');
-  const btnRetry  = document.getElementById('btnRetry');
-  const toast     = document.getElementById('toast');
+  const video      = document.getElementById('video');
+  const canvas     = document.getElementById('canvas');
+  const ctx        = canvas.getContext('2d');
+  const viewport   = document.getElementById('viewport');
+  const idle       = document.getElementById('idle');
+  const dot        = document.getElementById('dot');
+  const staleBadge = document.getElementById('staleBadge');
+  const detRow     = document.getElementById('detRow');
+  const noDet      = document.getElementById('noDet');
+  const fpsVal     = document.getElementById('fpsVal');
+  const msVal      = document.getElementById('msVal');
+  const mMs        = document.getElementById('mMs');
+  const btnStart   = document.getElementById('btnStart');
+  const btnSnap    = document.getElementById('btnSnap');
+  const slider     = document.getElementById('slider');
+  const sliderVal  = document.getElementById('sliderVal');
+  const toast      = document.getElementById('toast');
 
-  let stream = null;
+  // ── state ─────────────────────────────────────────────────────────────
+  let stream       = null;
+  let running      = false;
+  let loopId       = null;
+  let busy         = false;
+  let intervalMs   = 100;
 
-  // ── helpers ─────────────────────────────────────────────────────────
-  function setState(s) {
-    const map = { ready:'Ready', live:'Live', analysing:'Analysing…', done:'Done', error:'Error' };
-    stateLabel.textContent  = map[s] || s;
-    stateLabel.className    = 'state-label' + (
-      s === 'live' || s === 'analysing' ? ' active' :
-      s === 'done'  ? ' done'  :
-      s === 'error' ? ' error' : ''
-    );
-  }
+  // FPS tracking
+  let frameTimestamps = [];
+  // stale detection — if no response in 3s show warning
+  let lastResponseAt  = 0;
+  let staleTimer      = null;
 
+  // ── slider ────────────────────────────────────────────────────────────
+  slider.addEventListener('input', () => {
+    intervalMs = parseInt(slider.value);
+    sliderVal.textContent = intervalMs;
+    // restart loop with new interval if already running
+    if (running) {
+      clearInterval(loopId);
+      loopId = setInterval(sendFrame, intervalMs);
+    }
+  });
+
+  // ── helpers ───────────────────────────────────────────────────────────
   function showToast(msg) {
     toast.textContent = msg;
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 3500);
   }
 
+  function syncCanvas() {
+    canvas.width  = video.videoWidth  || viewport.clientWidth;
+    canvas.height = video.videoHeight || viewport.clientHeight;
+  }
+
+  function updateFps() {
+    const now = performance.now();
+    frameTimestamps.push(now);
+    // keep only last 1 second of timestamps
+    frameTimestamps = frameTimestamps.filter(t => now - t < 1000);
+    fpsVal.textContent = frameTimestamps.length;
+  }
+
   function updateDetections(dets) {
     detRow.querySelectorAll('.det-tag').forEach(el => el.remove());
     if (!dets || dets.length === 0) {
       noDet.style.display = '';
-      noDet.textContent   = '— nothing detected —';
       return;
     }
     noDet.style.display = 'none';
@@ -308,13 +340,92 @@
     });
   }
 
-  function syncCanvas() {
-    canvas.width  = video.videoWidth  || viewport.clientWidth;
-    canvas.height = video.videoHeight || viewport.clientHeight;
+  function drawResult(b64) {
+    const img = new Image();
+    img.onload = () => {
+      syncCanvas();
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    img.src = 'data:image/jpeg;base64,' + b64;
   }
 
-  // ── open camera ──────────────────────────────────────────────────────
-  btnOpen.addEventListener('click', async () => {
+  // stale detection
+  function resetStaleTimer() {
+    lastResponseAt = performance.now();
+    staleBadge.classList.remove('show');
+    clearTimeout(staleTimer);
+    staleTimer = setTimeout(() => {
+      if (running) staleBadge.classList.add('show');
+    }, 3000);
+  }
+
+  // ── send one frame ─────────────────────────────────────────────────────
+  async function sendFrame() {
+    // skip if previous request is still in flight
+    if (busy || !running || !video.videoWidth) return;
+    busy = true;
+
+    // capture from video into small offscreen canvas
+    const off = document.createElement('canvas');
+    off.width  = 640;
+    off.height = Math.round(640 * video.videoHeight / video.videoWidth) || 480;
+    off.getContext('2d').drawImage(video, 0, 0, off.width, off.height);
+    const dataURL = off.toDataURL('image/jpeg', 0.8);
+
+    try {
+      const res  = await fetch('/detect', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ frame: dataURL }),
+      });
+
+      if (!res.ok) throw new Error(`${res.status}`);
+      const data = await res.json();
+
+      drawResult(data.image);
+      updateDetections(data.detections);
+      updateFps();
+
+      const ms = data.inference_ms;
+      msVal.textContent = ms;
+      mMs.classList.toggle('warn', ms > 300);
+
+      resetStaleTimer();
+      dot.className = 'status-dot live';
+
+    } catch (err) {
+      dot.className = 'status-dot error';
+      showToast(`Server error: ${err.message}`);
+    } finally {
+      busy = false;
+    }
+  }
+
+  // ── start ──────────────────────────────────────────────────────────────
+  btnStart.addEventListener('click', async () => {
+    if (running) {
+      // ── stop ──
+      running = false;
+      clearInterval(loopId);
+      clearTimeout(staleTimer);
+      stream?.getTracks().forEach(t => t.stop());
+      stream = null;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      updateDetections([]);
+      frameTimestamps = [];
+      fpsVal.textContent = '--';
+      msVal.textContent  = '--';
+      staleBadge.classList.remove('show');
+      dot.className      = 'status-dot';
+      viewport.classList.remove('live');
+      idle.classList.remove('hidden');
+      btnStart.textContent = '▶ Start';
+      btnStart.classList.remove('running');
+      btnSnap.disabled = true;
+      return;
+    }
+
+    // ── start ──
     try {
       stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -329,83 +440,25 @@
     await new Promise(r => video.onloadedmetadata = r);
     syncCanvas();
 
+    running = true;
     idle.classList.add('hidden');
-    btnOpen.disabled    = true;
-    btnCapture.disabled = false;
-    btnRetry.disabled   = true;
-    setState('live');
+    viewport.classList.add('live');
+    dot.className        = 'status-dot live';
+    btnStart.textContent = '■ Stop';
+    btnStart.classList.add('running');
+    btnSnap.disabled     = false;
 
-    // clear any old result
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    viewport.classList.remove('result-shown');
-    perf.classList.remove('show');
-    updateDetections([]);
-    noDet.textContent = '— point camera at a floor —';
+    loopId = setInterval(sendFrame, intervalMs);
+    sendFrame(); // immediate first frame
   });
 
-  // ── capture & send ───────────────────────────────────────────────────
-  btnCapture.addEventListener('click', async () => {
-    if (!stream) return;
-
-    // 1. freeze — draw current video frame onto canvas
-    syncCanvas();
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // 2. pause live video (so user sees the frozen frame)
-    video.pause();
-    btnCapture.disabled = true;
-    btnRetry.disabled   = true;
-    spinner.classList.add('show');
-    setState('analysing');
-
-    // 3. encode canvas to JPEG
-    const dataURL = canvas.toDataURL('image/jpeg', 0.85);
-
-    // 4. send to /detect
-    try {
-      const res = await fetch('/detect', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ frame: dataURL }),
-      });
-
-      if (!res.ok) throw new Error(`Server returned ${res.status}`);
-      const data = await res.json();
-
-      // 5. draw annotated result over the frozen frame
-      const img = new Image();
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        viewport.classList.add('result-shown');
-      };
-      img.src = 'data:image/jpeg;base64,' + data.image;
-
-      updateDetections(data.detections);
-      perf.textContent = `${data.inference_ms} ms`;
-      perf.classList.add('show');
-      setState('done');
-
-    } catch (err) {
-      showToast('Server error — is the backend running?');
-      setState('error');
-      video.play();   // resume live on error
-    } finally {
-      spinner.classList.remove('show');
-      btnRetry.disabled = false;   // always allow retry
-    }
-  });
-
-  // ── retry — resume live camera ───────────────────────────────────────
-  btnRetry.addEventListener('click', () => {
-    video.play();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    viewport.classList.remove('result-shown');
-    perf.classList.remove('show');
-    updateDetections([]);
-    noDet.textContent   = '— point camera at a floor —';
-    btnCapture.disabled = false;
-    btnRetry.disabled   = true;
-    setState('live');
+  // ── snap — save current annotated canvas as image ─────────────────────
+  btnSnap.addEventListener('click', () => {
+    if (!running) return;
+    const link    = document.createElement('a');
+    link.download = `floor_detect_${Date.now()}.jpg`;
+    link.href     = canvas.toDataURL('image/jpeg', 0.92);
+    link.click();
   });
 
   window.addEventListener('resize', syncCanvas);
