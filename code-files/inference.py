@@ -123,9 +123,14 @@ def run(weights: str, source: int = 0, conf: float = CONF_THRESHOLD,
             "Run train.py first, then pass the best.pt path."
         )
 
+    # auto-detect GPU, fall back to CPU gracefully
+    import torch
+    device = 0 if torch.cuda.is_available() else "cpu"
+
     print(f"\n[INFO] Loading model: {weights}")
+    print(f"[INFO] Device       : {'GPU (CUDA)' if device == 0 else 'CPU'}")
     model = YOLO(str(weights))
-    print(f"[INFO] Classes : {model.names}")
+    print(f"[INFO] Classes      : {model.names}")
     print(f"[INFO] Opening camera source: {source}")
     print("[INFO] Press Q to quit, S to save screenshot\n")
 
@@ -154,7 +159,7 @@ def run(weights: str, source: int = 0, conf: float = CONF_THRESHOLD,
             conf      = conf,
             iou       = 0.45,
             imgsz     = 640,
-            device    = 0,           # GPU; change to "cpu" if needed
+            device    = device,
             verbose   = False,
         )
         result = results[0]
