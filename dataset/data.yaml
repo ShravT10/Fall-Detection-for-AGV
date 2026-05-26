@@ -3,11 +3,11 @@ val: valid/images
 test: test/images
 
 nc: 2
-names: ['floor', 'safe']
+names: ['forklift', 'person']
 
 roboflow:
   workspace: shravans-workspace-oc09h
-  project: floor-dl6bw-h9rau
-  version: 2
+  project: forklift-odgis-ecsyu
+  version: 1
   license: CC BY 4.0
-  url: https://universe.roboflow.com/shravans-workspace-oc09h/floor-dl6bw-h9rau/dataset/2
+  url: https://universe.roboflow.com/shravans-workspace-oc09h/forklift-odgis-ecsyu/dataset/1

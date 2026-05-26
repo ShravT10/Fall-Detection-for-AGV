@@ -16,12 +16,12 @@ from ultralytics import YOLO
 
 DEFAULT_CFG = {
     # ── model ──
-    "model"      : "yolov8n-seg.pt",   # nano-seg; pre-trained on COCO
-    "epochs"     : 100,
+    "model"      : "yolov8n.pt",   # nano-seg; pre-trained on COCO
+    "epochs"     : 150,
     "imgsz"      : 640,                 # full res – A3000 can handle it
 
     # ── batch & hardware ──
-    "batch"      : 8,                  # safe for ~4 GB VRAM; bump to 16 if no OOM
+    "batch"      : 16,                  # safe for ~4 GB VRAM; bump to 16 if no OOM
     "device"     : "0",                # GPU 0 (RTX A3000); set "cpu" to force CPU
     "workers"    : 4,                  # dataloader threads
 
@@ -37,24 +37,24 @@ DEFAULT_CFG = {
     "hsv_h"      : 0.015,             # hue jitter
     "hsv_s"      : 0.7,               # saturation jitter
     "hsv_v"      : 0.4,               # brightness jitter
-    "degrees"    : 5.0,               # rotation (floors are mostly level)
+    "degrees"    : 10.0,               # rotation (floors are mostly level)
     "translate"  : 0.1,
-    "scale"      : 0.5,
+    "scale"      : 0.6,
     "shear"      : 2.0,
     "perspective": 0.0005,            # slight perspective warp
     "flipud"     : 0.0,               # don't flip upside-down (floors are below)
     "fliplr"     : 0.5,               # horizontal flip is fine
     "mosaic"     : 1.0,               # mosaic – great for small datasets
-    "mixup"      : 0.1,               # light mixup
-    "copy_paste" : 0.3,               # copy-paste augmentation for segmentation
+    "mixup"      : 0.15,               # light mixup
+    "copy_paste" : 0.0,               # copy-paste augmentation for segmentation
 
     # ── training behaviour ──
-    "patience"   : 30,                # early stopping patience
+    "patience"   : 40,                # early stopping patience
     "save_period": 10,                # checkpoint every N epochs
     "val"        : True,
     "plots"      : True,              # save training plots
     "project"    : "runs/segment",
-    "name"       : "floor_safe_v1",
+    "name"       : "forklift_person_v1",
 }
 
 

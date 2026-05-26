@@ -173,7 +173,7 @@ def check(yaml_path: str, preview: int = 4):
                 class_counts[cls] += 1
                 if pts is None:
                     issues.append(
-                        f"[{split}] Malformed polygon in {lbl_path.name}"
+                        f"[{split}] Bounding box annotation in {lbl_path.name}"
                     )
 
             if len(preview_data) < preview:
